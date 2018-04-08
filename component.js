@@ -86,12 +86,13 @@ function CockpitComponent(x, y, mass) {
   Component.call(this, x, y, 200);
 
   this.thrust = 0.2;
-  this.rotationOffset = 1;
+  this.rotationOffset = 1.5;
+
+  this.body.collisionFilter.category = 0b10 // 0b10  = Non draggable
+  // this.body.collisionFilter.mask = 0 // Dont collide with anything
 
   this.color = color(255, 0, 0);
   this.fColor = color(100, 0, 0);
-
-  this.draggable = false;
 
   this.show = function() {
     fill(this.fColor);

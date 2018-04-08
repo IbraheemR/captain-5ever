@@ -1,62 +1,61 @@
-const
-    world = 2000000;
-    dimension = 600;
-    sector = 200,
-    unit = 20;
-const forceCoef = 0.5,
-      dragCoef = 0.95;
+let Engine = Matter.Engine,
+    World = Matter.World,
 
-var player;
-var testComponent;
+    Body = Matter.Body,
+    Bodies = Matter.Bodies,
+    Constraint = Matter.Constraint,
+    Composite = Matter.Composite,
+    Vector = Matter.Vector;
 
+
+let engine = Engine.create();
+let world = engine.world;
+world.gravity.y = 0;
+
+let speedDecay = 0.02;
+
+let unit = 30,
+    sector = 200;
+
+let testComponent,
+    testComponent2;
+let player;
 
 function setup() {
-  createCanvas(dimension, dimension);
-  angleMode(DEGREES);
+  createCanvas(windowWidth, windowHeight);
+  
+  testComponent = new Component(100, 100);
+  testComponent2 = new Component(50, 50);
 
-
-  player = new Player();
-  testComponent = new TestGirderComponent({x: 100, y: 200}, player);
-  testComponent2 = new TestGirderComponent({x: 100, y: 200});
+  player = new CockpitComponent(0, 0);
 }
 
 function draw() {
+  Engine.update(engine);
   background(0);
+  rectMode(CENTER);
 
-  // Draw the grid around the player
-  stroke(0, 255, 0, 50);
-  for (i=0; i<dimension/sector + 1; i++) {
-    line(0, (i * sector) + (player.x % sector), dimension, (i * sector) + (player.x % sector));
-    line((i * sector) + (player.y % sector), 0, (i * sector) + (player.y % sector), dimension);
+  translate(width/2, height/2);
+  // grid
+  for (i=round(-width/sector/2); i<round(width/sector/2)+1; i++) {
+    stroke(0, 255, 0, 100);
+    line(i * sector - player.pos.x % sector , -height/2, i * sector - player.pos.x % sector, height/2);
   }
-  push();
-  translate(dimension/2, dimension/2);
 
-  testComponent.update();
-  testComponent2.update();
+  for (i=round(-height/sector/2); i<round(height/sector/2)+1; i++) {
+    stroke(0, 255, 0, 100);
+    line(-width/2, i * sector - player.pos.y % sector , width/2, i * sector - player.pos.y % sector);
+  }
 
 
-  player.update();
-  pop();
-  player.drawHUD();
+  translate(-player.pos.x, -player.pos.y);
+
+  testComponent.show();
+  testComponent2.show();
+  player.doInput();  
+  player.show();
 }
 
-
-Number.prototype.toStatic = function(places=8) {
-  let sign = this >= 0 ? "+" : "";
-  let out = sign + this.toFixed(1);
-  let l = places - out.length;
-  out = " ".repeat( l > 0 ? l : 0) + out;
-  return out;
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
 }
-
-Number.prototype.toSector = function() {
-  let s = Math.round(this/sector);
-  let sign = s >= 0;
-
-  return (sign ? "$" : "~") + String(abs(s));
-}
-
-Number.prototype.mod = function(n) {
-  return ((this%n)+n)%n;
-};

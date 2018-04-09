@@ -67,6 +67,7 @@ function draw() {
   background(0);
   rectMode(CENTER);
 
+  push();
   translate(width/2, height/2);
   // grid
   for (i=round(-width/sector/2); i<round(width/sector/2)+1; i++) {
@@ -79,15 +80,47 @@ function draw() {
     line(-width/2, i * sector - player.pos.y % sector , width/2, i * sector - player.pos.y % sector);
   }
 
-
   translate(-player.pos.x, -player.pos.y);
+
+  //render physics objects
+  player.doInput();  
+  player.show();
 
   testComponent.show();
   testComponent2.show();
-  player.doInput();  
-  player.show();
+  pop();
+
+  //telemetry data
+  //y axis is inverted to look like more standard coords
+  let telemetry = 
+  `x : ${player.pos.x.toFixed(2).toMinLength(9)}  dx: ${player.body.velocity.x.toFixed(2).toMinLength(9)}
+y : ${(-player.pos.y).toFixed(2).toMinLength(9)}  dy: ${(-player.body.velocity.y).toFixed(2).toMinLength(9)}
+a : ${degrees(player.body.angle).mod(360).toFixed(1).toMinLength(8)}   da: ${(player.body.angularVelocity * 100).toFixed(1).toMinLength(8)}
+SECTOR:  p5:${floor(player.pos.x / sector)}:${floor(-player.pos.y / sector)}`
+  
+  fill(255)
+  noStroke()
+  textFont("monospace");
+  rectMode(CORNER);
+
+  text(telemetry, 20, 40, width-20, height);
 }
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
+
+//Length formatting for telemetry
+String.prototype.toMinLength = function(targetLength) {
+  currentLength = this.length;
+  if (currentLength < targetLength) {
+    let diff = targetLength - currentLength;
+    return " ".repeat(diff) + this;
+  } else {
+    return this;
+  }
+}
+//implement modulo
+Number.prototype.mod = function(n) {
+  return ((this%n)+n)%n;
+};

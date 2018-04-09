@@ -146,4 +146,7 @@ function CockpitComponent(x, y, mass) {
       Body.applyForce(this.body, {x: this.pos.x - this.rotationOffset, y: this.pos.y}, {x: 0, y: -this.thrust})
     }
   }
+
+  this.setParent = undefined;
+  this.unsetParent = undefined;
 }

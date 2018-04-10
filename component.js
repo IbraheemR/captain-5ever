@@ -13,7 +13,15 @@ function Component(x, y, mass) {
 
   this.draggable = true;
 
+  this.parent = null;
   this.parentConstraint = null;
+  this.parentConstraintDirection = null;
+  this.children = new Array(4);
+  this.attachPoints = [
+    {x:-unit/2, y:0},
+    {x:0, y:unit/2},
+    {x:0, y:-unit/2}
+  ];
 
   this.show = function() {
     fill(this.fColor);
@@ -38,52 +46,81 @@ function Component(x, y, mass) {
     pop();
   }
 
-  this.setParent = function(parent, direction) {
-    let offset;
-    switch (direction) {
-      case 1://right
-        offset = { x: unit, y: 0 };
-        break;
-      case 2://bottom
-        offset = { x: 0, y: unit };
-        break;
-      case 3://left
-        offset = { x: -unit, y: 0 };
-        break;
-      case 0://top    
-      default:
-        offset = { x: 0, y: -unit };
-        break;
+  this.setParent = function(parent, direction=0) {
+    let parentRoot = parent;
+    while (parentRoot) {
+      if (parentRoot.parent) {
+        parentRoot = parentRoot.parent;
+      } else {
+        break
+      }
     }
+
+    if (parent.children[direction] !== undefined || // component already attached to this side
+        parent.attachPoints[direction] === undefined || // side invalid
+        this == parent || // trying to attach to self
+        parentRoot.shipName !== "Jegonaught" // Ship is not player ship
+        ) {
+      return false;
+    }
+
+    let offset = parent.attachPoints[direction];
 
     //Move to parent side & rotate to face
     Body.setPosition(this.body, Vector.add(parent.pos, Vector.rotate(offset, parent.body.angle)));
     Body.setAngle(this.body, Vector.angle(this.pos, parent.pos));
 
-    //Clear any other parents
-    this.unsetParent()
+    //Clear any other parents, incase somehow still attached or has objects attached
+    this.unsetParent(false)
 
+    this.parent = parent;
+
+    //Create constraint
     this.parentConstraint = Constraint.create({
       bodyA: this.body,
       bodyB: parent.body,
+      pointA: Vector.mult(Vector.rotate(offset, parent.body.angle), -1),
       pointB: Vector.rotate(offset, parent.body.angle),
       length: 0
     });
-    World.add(world, this.parentConstraint)
 
+    // Add reference to parent
+    parent.children[direction] = this;
+    this.parentConstraintDirection = direction;
 
+    World.add(world, this.parentConstraint);
+
+    return true;
   }
 
-  this.unsetParent = function() {
+  this.unsetParent = function(recursive=true) {
     if (this.parentConstraint) {
-      World.remove(world, this.parentConstraint)
+      World.remove(world, this.parentConstraint);// remove constraint from world
+
+      if (recursive) {
+        for (child of this.children) { // recursively call on children
+          if (child) {
+            child.unsetParent();
+          }
+        }
+      }
+
+      Body.applyForce(this.body, this.pos, Vector.mult(Vector.normalise(Vector.sub(this.pos, this.parent.pos)), random(1.5)))
+
+      this.parent.children[this.parentConstraintDirection] = undefined;
+      this.parentConstraintDirection = null;
+      this.parentConstraint = null; 
+      this.parent = null;
+      return true;
     }
-    this.parentConstraint = null;
+    return false;
   }
 }
 
 function CockpitComponent(x, y, mass) {
   Component.call(this, x, y, 200);
+
+  this.shipName = "<replace me>"// TODO: ship name generation - issue #6
 
   this.thrust = 0.2;
   this.rotationOffset = 1.5;
@@ -93,6 +130,14 @@ function CockpitComponent(x, y, mass) {
 
   this.color = color(255, 0, 0);
   this.fColor = color(100, 0, 0);
+
+  this.children = new Array(4);
+  this.attachPoints = [
+    {x:0, y:-unit/2},
+    {x:unit/2, y:0},
+    {x:0, y:unit/2},
+    {x:-unit/2, y:0}
+  ];
 
   this.show = function() {
     fill(this.fColor);
@@ -147,6 +192,6 @@ function CockpitComponent(x, y, mass) {
     }
   }
 
-  this.setParent = undefined;
-  this.unsetParent = undefined;
+  delete this.setParent;
+  delete this.unsetParent;
 }

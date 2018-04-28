@@ -14,18 +14,9 @@ let Engine = Matter.Engine,
 let engine, world;
 let canvasMouse, tractorBeam;
 
-let speedDecay = 0.04;
-
-let unit = 30,
-    sector = 200;
-
-
 // Other
-let testComponent,
-    testComponent2;
+let components = [];
 let player;
-
-let draggedBodyMask; // Keep track of old mask when dragging
 
 let zoom = 1;
 
@@ -39,41 +30,16 @@ function setup() {
   canvasMouse = Mouse.create(canvas.elt);
   canvasMouse.pixelRatio = pixelDensity();
 
-  tractorBeam = MouseConstraint.create(engine, {
-    mouse: canvasMouse,
-  });
-  tractorBeam.collisionFilter.mask = 0b01; // Only colide with 0b01 (normal, draggable elements)
-
-  Events.on(tractorBeam, "startdrag", function(e) {
-    draggedBodyMask =  e.body.collisionFilter.mask;
-    tractorBeam.constraint.stiffness = 0; //Dont move anything (untill far enought away)
-    e.body.collisionFilter.mask = 0; // Do not interact
-  });
-
-  Events.on(tractorBeam, "mousemove", function(e) {
-    if (tractorBeam.body) {
-      let bodyPos = tractorBeam.body.position;
-      let mousePos = canvasMouse.position;
+  tractorBeam = new TractorBeam(canvasMouse);
   
-      let dist = Vector.magnitude(Vector.sub(bodyPos, mousePos));
-  
-      if (dist > unit) {
-        tractorBeam.constraint.stiffness = 0.5; //Dont move anything (untill far enought away)
-      }
-    }
-  });
-
-  Events.on(tractorBeam, "enddrag", function(e) {
-    e.body.collisionFilter.mask = draggedBodyMask || -1;// Reset or set to default if not properly stored
-  });
-
-  World.add(world, tractorBeam);
-  
-  testComponent = new Component(100, 100);
-  testComponent2 = new Component(50, 50);
+  for (i=0; i<20; i++) {
+    components.push(
+      new Component(random(-200, 200), random(-200, 200))
+     );
+  }
 
   player = new CockpitComponent(0, 0);
-  player.shipName = "Jegonaught"
+  player.name = config.playerShipName;
 }
 
 function draw() {
@@ -82,55 +48,35 @@ function draw() {
 
   background(0);
   rectMode(CENTER);
+  ellipseMode(CENTER);
 
   push();
   translate(width/2, height/2);
   scale(zoom);
+
   // grid
-  for (i=round(-width/sector/2 * 1/zoom) ; i<round(width/sector/2 * 1/zoom)+1; i++) {
-    stroke(0, 255, 0, 100);
-    line(i * sector - player.pos.x % sector , -height/2 * 1/zoom, i * sector - player.pos.x % sector, height/2 * 1/zoom);
+  strokeWeight(1 / zoom);
+  stroke(0, 255, 0, 50);
+  for (i=round(-width/config.sector/2 * 1/zoom) ; i<round(width/config.sector/2 * 1/zoom)+1; i++) {
+    line(i * config.sector - player.pos.x % config.sector , -height/2 * 1/zoom, i * config.sector - player.pos.x % config.sector, height/2 * 1/zoom);
   }
 
-  for (i=round(-height/sector/2 * 1/zoom); i<round(height/sector/2 * 1/zoom)+1; i++) {
-    stroke(0, 255, 0, 100);
-    line(-width/2 * 1/zoom, i * sector - player.pos.y % sector , width/2 * 1/zoom, i * sector - player.pos.y % sector);
+  for (i=round(-height/config.sector/2 * 1/zoom); i<round(height/config.sector/2 * 1/zoom)+1; i++) {
+    line(-width/2 * 1/zoom, i * config.sector - player.pos.y % config.sector , width/2 * 1/zoom, i * config.sector - player.pos.y % config.sector);
   }
 
   translate(-player.pos.x, -player.pos.y);
 
   //render physics objects
-  player.doInput();  
-  player.show();
-
-  testComponent.show();
-  testComponent2.show();
-
-  //Tractor beam
-
-  if (tractorBeam.constraint.bodyB) {
-    noFill()
-    stroke(0, 100, 255);
-    strokeWeight(2)
-
-    let bodyPos = tractorBeam.constraint.bodyB.position;
-    let tractorVect = Vector.sub(bodyPos, player.pos);
-    let tractorDist = Vector.magnitude(tractorVect);
-    
-    beginShape();
-    vertex(player.pos.x, player.pos.y);
-    for (i=1; i<10; i++) {
-      let pos = Vector.add(player.pos,
-        Vector.mult(tractorVect, i/10)
-      );
-      let velCoef = 5 * sin(0.1 * PI * i) * tractorDist/100 // Makes the beam drag along behind the ship
-      vertex(pos.x + random(-tractorDist/20, tractorDist/20) - velCoef * player.body.velocity.x, pos.y + random(-tractorDist/20, tractorDist/20) - velCoef * player.body.velocity.y);
-    }
-    vertex(bodyPos.x, bodyPos.y);
-    endShape();
+  for (let component of components) {
+    component.show()
   }
 
+  player.doInput();
+  player.show();
 
+  //Tractor beam
+  tractorBeam.show();
 
   pop();
 
@@ -140,8 +86,8 @@ function draw() {
   `x : ${player.pos.x.toFixed(2).toMinLength(9)}  dx: ${player.body.velocity.x.toFixed(2).toMinLength(9)}
 y : ${(-player.pos.y).toFixed(2).toMinLength(9)}  dy: ${(-player.body.velocity.y).toFixed(2).toMinLength(9)}
 a : ${degrees(player.body.angle).mod(360).toFixed(1).toMinLength(8)}   da: ${(player.body.angularVelocity * 100).toFixed(1).toMinLength(8)}
-SECTOR:  p5:${floor(player.pos.x / sector)}:${floor(-player.pos.y / sector)}
-ZOOM: ${zoom}`
+SECTOR:  p5:${floor(player.pos.x / config.sector)}:${floor(-player.pos.y / config.sector)}
+ZOOM: x${zoom}`
   
   fill(255)
   noStroke()
@@ -153,10 +99,10 @@ ZOOM: ${zoom}`
 
 //Check for zoom change
 function keyPressed() {
-  if (keyCode == 82) {// r
+  if (keyCode == 82 /*r*/ && zoom < config.maxZoom) {
     zoom *= 2;
     canvasMouse.pixelRatio *= 2;// Adjust mouse positioning
-  } else if (keyCode == 70){ // f
+  } else if (keyCode == 70 /*f*/ && zoom > config.minZoom){
     zoom /= 2;
     canvasMouse.pixelRatio /= 2;
   }
@@ -165,18 +111,3 @@ function keyPressed() {
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
-
-//Length formatting for telemetry
-String.prototype.toMinLength = function(targetLength) {
-  currentLength = this.length;
-  if (currentLength < targetLength) {
-    let diff = targetLength - currentLength;
-    return " ".repeat(diff) + this;
-  } else {
-    return this;
-  }
-}
-//implement modulo
-Number.prototype.mod = function(n) {
-  return ((this%n)+n)%n;
-};

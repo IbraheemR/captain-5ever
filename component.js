@@ -77,8 +77,8 @@ Component.prototype.setParent = function(parent, direction=0) {
 
   if (parent.children[direction] !== undefined || // component already attached to this side
       parent.attachPoints[direction] === undefined || // side invalid
-      this == parent //|| // trying to attach to self
-      // parent.getParentRoot().name !== config.playerShipName // Ship is not player ship
+      this == parent || // trying to attach to self
+      parent.getParentRoot().name !== config.playerShipName // Ship is not player ship
       ) {
     return false;
   }
